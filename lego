@@ -1,0 +1,48 @@
+mkdir image_upload && cd image_upload && \
+go mod init image_upload && \
+cat <<EOF > main.go && \
+package main
+
+import (
+    "fmt"
+    "net/http"
+    "os"
+    "path/filepath"
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    r := gin.Default()
+
+    // Загрузка файла
+    r.POST("/upload", func(c *gin.Context) {
+        file, header, err := c.Request.FormFile("file")
+        if err != nil {
+            c.String(http.StatusBadRequest, fmt.Sprintf("Ошибка при получении файла: %s", err.Error()))
+            return
+        }
+        filename := filepath.Base(header.Filename)
+        out, err := os.Create("uploads/" + filename)
+        if err != nil {
+            c.String(http.StatusInternalServerError, fmt.Sprintf("Ошибка при создании файла: %s", err.Error()))
+            return
+        }
+        defer out.Close()
+        _, err = io.Copy(out, file)
+        if err != nil {
+            c.String(http.StatusInternalServerError, fmt.Sprintf("Ошибка при копировании файла: %s", err.Error()))
+            return
+        }
+        c.String(http.StatusOK, fmt.Sprintf("Файл %s успешно загружен", filename))
+    })
+
+    // Статический файл, чтобы отображать загруженные изображения
+    r.Static("/uploads", "./uploads")
+
+    r.Run(":8080")
+}
+EOF
+
+mkdir uploads && \
+go get -u github.com/gin-gonic/gin && \
+go run main.go
